@@ -22,15 +22,15 @@ library(WinMO)
 set.seed(20260224)
 
 ## 1) Generate toy RCT data
-n <- 400
+n <- 10000
 X <- matrix(rnorm(n * 3), n, 3)
 colnames(X) <- paste0("X", 1:3)
 
 A <- rbinom(n, 1, 0.5)  # randomized treatment
 
 # latent utilities for two ordinal endpoints
-U1 <- 0.6 * A + 0.5 * X[,1] - 0.3 * X[,2] + rnorm(n)
-U2 <- 0.3 * A + 0.2 * X[,1] + 0.4 * X[,3] + rnorm(n)
+U1 <- 0.6*A + X[,1] + 4*X[,2] + rnorm(n)
+U2 <- 0.8*A + 1.6*X[,1] + 5.2*X[,3] + rnorm(n)
 
 # map to ordinal categories (3-level Y1, 4-level Y2)
 Y1 <- cut(U1, breaks = c(-Inf, -0.3, 0.8, Inf),
@@ -104,18 +104,18 @@ Finally, we can print and view the results of this toy example:
 > cat("\n--- IPW ---\n");  print(tab_ipw)
 --- IPW ---
   estimand estimate    se ci_lower ci_upper
-1       WR    0.629 0.034    0.563    0.695
-2       WO    0.653 0.032    0.590    0.716
-3       NB   -0.210 0.023   -0.256   -0.164
-4     DOOR    0.395 0.012    0.372    0.418
+1       WR    0.915 0.037    0.843    0.987
+2       WO    0.928 0.031    0.866    0.989
+3       NB   -0.037 0.017   -0.070   -0.004
+4     DOOR    0.481 0.008    0.465    0.498
 
 > cat("\n--- AIPW ---\n"); print(tab_aipw)
 --- AIPW ---
   estimand estimate    se ci_lower ci_upper
-1       WR    0.642 0.037    0.569    0.715
-2       WO    0.666 0.033    0.602    0.730
-3       NB   -0.200 0.023   -0.246   -0.154
-4     DOOR    0.400 0.012    0.377    0.423
+1       WR    0.903 0.027    0.850    0.956
+2       WO    0.918 0.023    0.874    0.963
+3       NB   -0.043 0.012   -0.067   -0.018
+4     DOOR    0.479 0.006    0.467    0.491
 ```
 
 ## Reference
