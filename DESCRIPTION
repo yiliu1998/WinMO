@@ -1,0 +1,15 @@
+Package: WinMO
+Type: Package
+Title: Estimation and Inference for Win Estimands for Hierarchical Ordinal Endpoints Under Missing Data
+Version: 0.1.0
+Author: Yi Liu
+Maintainer: Yi Liu <yi.liu.biostat@gmail.com>
+Description: Implements IPW and AIPW estimators for win/loss/tie probabilities
+    and derived win estimands (WR, WO, NB, DOOR) for 1--3 hierarchical ordinal
+    endpoints subject to missing data. Provides influence-function based
+    variance estimation and delta-method standard errors.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.3
+Imports: stats, MASS, nnet
