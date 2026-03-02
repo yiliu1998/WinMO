@@ -120,7 +120,7 @@ Finally, we can print and view the results of this toy example:
 
 ## Reference
 
-Yi Liu, Huiman Barnhart, Sean O'Brien, Yuliya Lokhnygina, and Roland A. Matsouaka (2026+). Estimation and Inference for Win Estimands with Multiple Ordinal Endpoints Subject to Missing Data. Under review. 
+Yi Liu, Huiman Barnhart, Sean O'Brien, Yuliya Lokhnygina, and Roland A. Matsouaka (2026+). Estimation and Inference for Win Estimands with Multiple Ordinal Endpoints Subject to Missing Data. Unpublished pre-print. 
 
 ## Contact
 
