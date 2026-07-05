@@ -16,7 +16,6 @@ devtools::install_github("yiliu1998/WinMO")
 Below is a minimal reproducible example that simulates a randomized clinical trial with two hierarchical ordinal endpoints (`Y1`, `Y2`), induces missingness depending on covariates, and then estimates win estimands using IPW and AIPW via `WinMO`.
 
 ```r
-# devtools::install_github("YOUR_GITHUB/WinMO")
 library(WinMO)
 
 set.seed(20260224)
@@ -64,15 +63,8 @@ Xnames <- c("X1","X2","X3")
 
 res_ipw  <- WinMO(dat, A = "A", X = Xnames, Y = c("Y1","Y2"), method = "IPW")
 res_aipw <- WinMO(dat, A = "A", X = Xnames, Y = c("Y1","Y2"), method = "AIPW")
-```
 
-Using normal approximation, we can also get the 95% confidence intervals for each estimand: 
-
-```r
-wald_ci <- function(est, se) {
-  z <- qnorm(0.975)
-  c(lower = est - z * se, upper = est + z * se)
-}
+## 4）Summarize results
 
 summarize_winmo <- function(res) {
   est <- c(WR = res$WR, WO = res$WO, NB = res$NB, DOOR = res$DOOR)
@@ -92,30 +84,34 @@ summarize_winmo <- function(res) {
 
 tab_ipw  <- summarize_winmo(res_ipw)
 tab_aipw <- summarize_winmo(res_aipw)
-
-num_cols <- sapply(tab_ipw, is.numeric)
-tab_ipw[num_cols]  <- lapply(tab_ipw[num_cols],  round, 3)
-tab_aipw[num_cols] <- lapply(tab_aipw[num_cols], round, 3)
 ```
 
 Finally, we can print and view the results of this toy example: 
 
 ```r
-> cat("\n--- IPW ---\n");  print(tab_ipw)
---- IPW ---
-  estimand estimate    se ci_lower ci_upper
-1       WR    0.915 0.037    0.843    0.987
-2       WO    0.928 0.031    0.866    0.989
-3       NB   -0.037 0.017   -0.070   -0.004
-4     DOOR    0.481 0.008    0.465    0.498
+tab_ipw
+```
+This gives
+```r
+  estimand    estimate          SE       lower       upper
+1       WR  0.91471376 0.036836174  0.84529192  0.98983704
+2       NB -0.03738413 0.016865417 -0.07043974 -0.00432852
+3       WO  0.92792616 0.031343528  0.86848335  0.99143749
+4     DOOR  0.48130793 0.008432709  0.46478013  0.49783574
 
-> cat("\n--- AIPW ---\n"); print(tab_aipw)
---- AIPW ---
-  estimand estimate    se ci_lower ci_upper
-1       WR    0.903 0.027    0.850    0.956
-2       WO    0.918 0.023    0.874    0.963
-3       NB   -0.043 0.012   -0.067   -0.018
-4     DOOR    0.479 0.006    0.467    0.491
+```
+
+```r
+tab_aipw
+```
+This gives
+  
+```r
+  estimand    estimate          SE       lower      upper
+1       WR  0.90308152 0.027042103  0.85160531  0.9576693
+2       NB -0.04256247 0.012371842 -0.06681083 -0.0183141
+3       WO  0.91835028 0.022764610  0.87479900  0.9640697
+4     DOOR  0.47871877 0.006185921  0.46659458  0.4908430
 ```
 
 ## Reference
