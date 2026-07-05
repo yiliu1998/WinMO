@@ -24,7 +24,7 @@
 #'
 #' @return A named \code{list} with elements (at least)
 #' \code{pW}, \code{pL}, \code{pT}, \code{WR}, \code{NB}, \code{WO}, \code{DOOR},
-#' and \code{SE_IF}. Additional fields include \code{method}, \code{K}, \code{Y}, \code{call}.
+#' and \code{SE_IF}, \code{CI_95}. Additional fields include \code{method}, \code{K}, \code{Y}, \code{call}.
 #'
 #' @examples
 #' \dontrun{
@@ -83,11 +83,14 @@ WinMO <- function(data,
 }
 
 
-WinMO_logratio_SE <- function(pW, pL, pT, Psi, eps = 1e-6) {
+WinMO_logratio_SE <- function(pW, pL, pT, Psi, eps = 1e-6, level = 0.95) {
   V <- crossprod(Psi / nrow(Psi))
+  z <- qnorm(1 - (1 - level) / 2)
 
-  WR_hat <- if (pL > 0) pW / pL else NA_real_
-  WO_hat <- (pW + 0.5 * pT) / (pL + 0.5 * pT)
+  est <- c(WR = if (pL > 0) pW / pL else NA_real_,
+           NB = pW - pL,
+           WO = (pW + 0.5 * pT) / (pL + 0.5 * pT),
+           DOOR = pW + 0.5 * pT)
 
   num_WR <- max(pW, eps)
   den_WR <- max(pL, eps)
@@ -101,13 +104,22 @@ WinMO_logratio_SE <- function(pW, pL, pT, Psi, eps = 1e-6) {
 
   G <- rbind(grad_log_WR, grad_NB, grad_log_WO, grad_DOOR)
   se_tmp <- sqrt(pmax(diag(G %*% V %*% t(G)), 0))
+  se_log_WR <- unname(se_tmp[1])
+  se_log_WO <- unname(se_tmp[3])
 
-  SE_log <- c(WR = unname(se_tmp[1]), WO = unname(se_tmp[3]))
-  SE <- c(WR = if (is.finite(WR_hat)) WR_hat * SE_log["WR"] else NA_real_,
+  SE <- c(WR = if (is.finite(est["WR"]) && est["WR"] > 0) unname(est["WR"]) * se_log_WR else NA_real_,
           NB = unname(se_tmp[2]),
-          WO = if (is.finite(WO_hat)) WO_hat * SE_log["WO"] else NA_real_,
+          WO = if (is.finite(est["WO"]) && est["WO"] > 0) unname(est["WO"]) * se_log_WO else NA_real_,
           DOOR = unname(se_tmp[4]))
-  list(SE = SE, SE_log = SE_log)
+
+  CI_95 <- matrix(NA_real_, nrow = 4L, ncol = 2L,
+                  dimnames = list(c("WR", "NB", "WO", "DOOR"), c("lower", "upper")))
+  if (is.finite(est["WR"]) && est["WR"] > 0) CI_95["WR", ] <- exp(log(unname(est["WR"])) + c(-1, 1) * z * se_log_WR)
+  CI_95["NB", ] <- unname(est["NB"]) + c(-1, 1) * z * SE["NB"]
+  if (is.finite(est["WO"]) && est["WO"] > 0) CI_95["WO", ] <- exp(log(unname(est["WO"])) + c(-1, 1) * z * se_log_WO)
+  CI_95["DOOR", ] <- unname(est["DOOR"]) + c(-1, 1) * z * SE["DOOR"]
+
+  list(SE = SE, CI_95 = CI_95)
 }
 
 IPW_WinStat_1end_IF <- function(data, A, X, Y, eps = 1e-6) {
@@ -192,7 +204,7 @@ IPW_WinStat_1end_IF <- function(data, A, X, Y, eps = 1e-6) {
   Psi <- cbind(psi_pW, psi_pL, psi_pT)
   SE_out <- WinMO_logratio_SE(pW, pL, pT, Psi, eps)
   SE <- SE_out$SE
-  SE_log <- SE_out$SE_log
+  CI_95 <- SE_out$CI_95
 
   list(pW = pW, pL = pL, pT = pT,
        WR = if (pL > 0) pW / pL else NA_real_,
@@ -200,7 +212,7 @@ IPW_WinStat_1end_IF <- function(data, A, X, Y, eps = 1e-6) {
        WO = (pW + 0.5 * pT) / (pL + 0.5 * pT),
        DOOR = pW + 0.5 * pT,
        SE_IF = SE,
-       SE_log_IF = SE_log)
+       CI_95 = CI_95)
 }
 
 AIPW_WinStat_1end_IF <- function(data, A, X, Y, eps = 1e-6) {
@@ -326,7 +338,7 @@ AIPW_WinStat_1end_IF <- function(data, A, X, Y, eps = 1e-6) {
   Psi <- cbind(psi_pW, psi_pL, psi_pT)
   SE_out <- WinMO_logratio_SE(pW, pL, pT, Psi, eps)
   SE <- SE_out$SE
-  SE_log <- SE_out$SE_log
+  CI_95 <- SE_out$CI_95
 
   list(pW = pW, pL = pL, pT = pT,
        WR = if (pL > 0) pW / pL else NA_real_,
@@ -334,7 +346,7 @@ AIPW_WinStat_1end_IF <- function(data, A, X, Y, eps = 1e-6) {
        WO = (pW + 0.5 * pT) / (pL + 0.5 * pT),
        DOOR = pW + 0.5 * pT,
        SE_IF = SE,
-       SE_log_IF = SE_log)
+       CI_95 = CI_95)
 }
 
 IPW_WinStat_2end_IF <- function(data, A, X, Y1, Y2, eps = 1e-6) {
@@ -480,7 +492,7 @@ IPW_WinStat_2end_IF <- function(data, A, X, Y1, Y2, eps = 1e-6) {
   Psi <- cbind(psi_pW, psi_pL, psi_pT)
   SE_out <- WinMO_logratio_SE(pW, pL, pT, Psi, eps)
   SE <- SE_out$SE
-  SE_log <- SE_out$SE_log
+  CI_95 <- SE_out$CI_95
 
   list(pW = pW, pL = pL, pT = pT,
        WR = if (pL > 0) pW / pL else NA_real_,
@@ -488,7 +500,7 @@ IPW_WinStat_2end_IF <- function(data, A, X, Y1, Y2, eps = 1e-6) {
        WO = (pW + 0.5 * pT) / (pL + 0.5 * pT),
        DOOR = pW + 0.5 * pT,
        SE_IF = SE,
-       SE_log_IF = SE_log)
+       CI_95 = CI_95)
 }
 
 AIPW_WinStat_2end_IF <- function(data, A, X, Y1, Y2, eps = 1e-6) {
@@ -683,7 +695,7 @@ AIPW_WinStat_2end_IF <- function(data, A, X, Y1, Y2, eps = 1e-6) {
   Psi <- cbind(psi_pW, psi_pL, psi_pT)
   SE_out <- WinMO_logratio_SE(pW, pL, pT, Psi, eps)
   SE <- SE_out$SE
-  SE_log <- SE_out$SE_log
+  CI_95 <- SE_out$CI_95
 
   list(pW = pW, pL = pL, pT = pT,
        WR = if (pL > 0) pW / pL else NA_real_,
@@ -691,7 +703,7 @@ AIPW_WinStat_2end_IF <- function(data, A, X, Y1, Y2, eps = 1e-6) {
        WO = (pW + 0.5*pT) / (pL + 0.5*pT),
        DOOR = pW + 0.5*pT,
        SE_IF = SE,
-       SE_log_IF = SE_log)
+       CI_95 = CI_95)
 }
 
 IPW_WinStat_3end_IF <- function(data, A, X, Y1, Y2, Y3, eps = 1e-6) {
@@ -835,7 +847,7 @@ IPW_WinStat_3end_IF <- function(data, A, X, Y1, Y2, Y3, eps = 1e-6) {
   Psi <- cbind(psi_pW, psi_pL, psi_pT)
   SE_out <- WinMO_logratio_SE(pW, pL, pT, Psi, eps)
   SE <- SE_out$SE
-  SE_log <- SE_out$SE_log
+  CI_95 <- SE_out$CI_95
 
   list(pW = pW, pL = pL, pT = pT,
        WR = if (pL > 0) pW / pL else NA_real_,
@@ -843,7 +855,7 @@ IPW_WinStat_3end_IF <- function(data, A, X, Y1, Y2, Y3, eps = 1e-6) {
        WO = (pW + 0.5 * pT) / (pL + 0.5 * pT),
        DOOR = pW + 0.5 * pT,
        SE_IF = SE,
-       SE_log_IF = SE_log)
+       CI_95 = CI_95)
 }
 
 AIPW_WinStat_3end_IF <- function(data, A, X, Y1, Y2, Y3, eps = 1e-6) {
@@ -1031,7 +1043,7 @@ AIPW_WinStat_3end_IF <- function(data, A, X, Y1, Y2, Y3, eps = 1e-6) {
   Psi <- cbind(psi_pW, psi_pL, psi_pT)
   SE_out <- WinMO_logratio_SE(pW, pL, pT, Psi, eps)
   SE <- SE_out$SE
-  SE_log <- SE_out$SE_log
+  CI_95 <- SE_out$CI_95
 
   list(pW = pW, pL = pL, pT = pT,
        WR = if (pL > 0) pW / pL else NA_real_,
@@ -1039,6 +1051,6 @@ AIPW_WinStat_3end_IF <- function(data, A, X, Y1, Y2, Y3, eps = 1e-6) {
        WO = (pW + 0.5 * pT) / (pL + 0.5 * pT),
        DOOR = pW + 0.5 * pT,
        SE_IF = SE,
-       SE_log_IF = SE_log)
+       CI_95 = CI_95)
 }
 
