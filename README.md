@@ -48,7 +48,6 @@ Y2[R2 == 0] <- NA
 dat <- data.frame(A = A, X1 = X[,1], X2 = X[,2], X3 = X[,3], Y1 = Y1, Y2 = Y2)
 
 ## 3) Run WinMO function (two hierarchical endpoints: Y1 primary, Y2 secondary)
-
 Xnames <- c("X1","X2","X3")
 res_ipw  <- WinMO(dat, A = "A", X = Xnames, Y = c("Y1","Y2"), method = "IPW")
 res_aipw <- WinMO(dat, A = "A", X = Xnames, Y = c("Y1","Y2"), method = "AIPW")
