@@ -82,6 +82,34 @@ WinMO <- function(data,
   out
 }
 
+
+WinMO_logratio_SE <- function(pW, pL, pT, Psi, eps = 1e-6) {
+  V <- crossprod(Psi / nrow(Psi))
+
+  WR_hat <- if (pL > 0) pW / pL else NA_real_
+  WO_hat <- (pW + 0.5 * pT) / (pL + 0.5 * pT)
+
+  num_WR <- max(pW, eps)
+  den_WR <- max(pL, eps)
+  num_WO <- max(pW + 0.5 * pT, eps)
+  den_WO <- max(pL + 0.5 * pT, eps)
+
+  grad_log_WR <- c(1 / num_WR, -1 / den_WR, 0)
+  grad_NB <- c(1, -1, 0)
+  grad_log_WO <- c(1 / num_WO, -1 / den_WO, 0.5 / num_WO - 0.5 / den_WO)
+  grad_DOOR <- c(1, 0, 0.5)
+
+  G <- rbind(grad_log_WR, grad_NB, grad_log_WO, grad_DOOR)
+  se_tmp <- sqrt(pmax(diag(G %*% V %*% t(G)), 0))
+
+  SE_log <- c(WR = unname(se_tmp[1]), WO = unname(se_tmp[3]))
+  SE <- c(WR = if (is.finite(WR_hat)) WR_hat * SE_log["WR"] else NA_real_,
+          NB = unname(se_tmp[2]),
+          WO = if (is.finite(WO_hat)) WO_hat * SE_log["WO"] else NA_real_,
+          DOOR = unname(se_tmp[4]))
+  list(SE = SE, SE_log = SE_log)
+}
+
 IPW_WinStat_1end_IF <- function(data, A, X, Y, eps = 1e-6) {
   n <- nrow(data)
   Av <- as.integer(data[[A]])
@@ -162,26 +190,17 @@ IPW_WinStat_1end_IF <- function(data, A, X, Y, eps = 1e-6) {
   }
   psi_pT <- -psi_pW - psi_pL
   Psi <- cbind(psi_pW, psi_pL, psi_pT)
-  V <- crossprod(Psi / n)
-
-  pL_eps <- max(pL, eps)
-  denom_WO <- max(pL + 0.5 * pT, eps)
-  grad_WR   <- c(1 / pL_eps, -pW / pL_eps^2, 0)
-  grad_NB   <- c(1, -1, 0)
-  grad_WO   <- c(1 / denom_WO,
-                 -(pW + 0.5 * pT) / denom_WO^2,
-                 0.5 * (pL - pW) / denom_WO^2)
-  grad_DOOR <- c(1, 0, 0.5)
-  G <- rbind(grad_WR, grad_NB, grad_WO, grad_DOOR)
-  SE <- sqrt(diag(G %*% V %*% t(G)))
-  names(SE) <- c("WR", "NB", "WO", "DOOR")
+  SE_out <- WinMO_logratio_SE(pW, pL, pT, Psi, eps)
+  SE <- SE_out$SE
+  SE_log <- SE_out$SE_log
 
   list(pW = pW, pL = pL, pT = pT,
        WR = if (pL > 0) pW / pL else NA_real_,
        NB = pW - pL,
        WO = (pW + 0.5 * pT) / (pL + 0.5 * pT),
        DOOR = pW + 0.5 * pT,
-       SE_IF = SE)
+       SE_IF = SE,
+       SE_log_IF = SE_log)
 }
 
 AIPW_WinStat_1end_IF <- function(data, A, X, Y, eps = 1e-6) {
@@ -305,26 +324,17 @@ AIPW_WinStat_1end_IF <- function(data, A, X, Y, eps = 1e-6) {
   psi_pT <- -psi_pW - psi_pL
 
   Psi <- cbind(psi_pW, psi_pL, psi_pT)
-  V <- crossprod(Psi / n)
-
-  pL_eps <- max(pL, eps)
-  denom_WO <- max(pL + 0.5 * pT, eps)
-  grad_WR <- c(1 / pL_eps, -pW / pL_eps^2, 0)
-  grad_NB <- c(1, -1, 0)
-  grad_WO <- c(1 / denom_WO,
-               -(pW + 0.5 * pT) / denom_WO^2,
-               0.5 * (pL - pW) / denom_WO^2)
-  grad_DOOR <- c(1, 0, 0.5)
-  G <- rbind(grad_WR, grad_NB, grad_WO, grad_DOOR)
-  SE <- sqrt(diag(G %*% V %*% t(G)))
-  names(SE) <- c("WR", "NB", "WO", "DOOR")
+  SE_out <- WinMO_logratio_SE(pW, pL, pT, Psi, eps)
+  SE <- SE_out$SE
+  SE_log <- SE_out$SE_log
 
   list(pW = pW, pL = pL, pT = pT,
        WR = if (pL > 0) pW / pL else NA_real_,
        NB = pW - pL,
        WO = (pW + 0.5 * pT) / (pL + 0.5 * pT),
        DOOR = pW + 0.5 * pT,
-       SE_IF = SE)
+       SE_IF = SE,
+       SE_log_IF = SE_log)
 }
 
 IPW_WinStat_2end_IF <- function(data, A, X, Y1, Y2, eps = 1e-6) {
@@ -468,26 +478,17 @@ IPW_WinStat_2end_IF <- function(data, A, X, Y1, Y2, eps = 1e-6) {
 
   psi_pT <- -psi_pW - psi_pL
   Psi <- cbind(psi_pW, psi_pL, psi_pT)
-  V <- crossprod(Psi / n)
-
-  denom_L <- max(pL, eps)
-  denom_WO <- max(pL + 0.5 * pT, eps)
-  grad_WR   <- c(1 / denom_L, -pW / denom_L^2, 0)
-  grad_NB   <- c(1, -1, 0)
-  grad_WO   <- c(1 / denom_WO,
-                 -(pW + 0.5 * pT) / denom_WO^2,
-                 0.5 * (pL - pW) / denom_WO^2)
-  grad_DOOR <- c(1, 0, 0.5)
-  G <- rbind(grad_WR, grad_NB, grad_WO, grad_DOOR)
-  SE <- sqrt(diag(G %*% V %*% t(G)))
-  names(SE) <- c("WR", "NB", "WO", "DOOR")
+  SE_out <- WinMO_logratio_SE(pW, pL, pT, Psi, eps)
+  SE <- SE_out$SE
+  SE_log <- SE_out$SE_log
 
   list(pW = pW, pL = pL, pT = pT,
        WR = if (pL > 0) pW / pL else NA_real_,
        NB = pW - pL,
        WO = (pW + 0.5 * pT) / (pL + 0.5 * pT),
        DOOR = pW + 0.5 * pT,
-       SE_IF = SE)
+       SE_IF = SE,
+       SE_log_IF = SE_log)
 }
 
 AIPW_WinStat_2end_IF <- function(data, A, X, Y1, Y2, eps = 1e-6) {
@@ -680,26 +681,17 @@ AIPW_WinStat_2end_IF <- function(data, A, X, Y1, Y2, eps = 1e-6) {
   psi_pT <- -psi_pW - psi_pL
 
   Psi <- cbind(psi_pW, psi_pL, psi_pT)
-  V <- crossprod(Psi / n)
-
-  denom_L <- max(pL, eps)
-  denom_WO <- max(pL + 0.5 * pT, eps)
-  grad_WR <- c(1 / denom_L, -pW / denom_L^2, 0)
-  grad_NB <- c(1, -1, 0)
-  grad_WO <- c(1 / denom_WO,
-               -(pW + 0.5 * pT) / denom_WO^2,
-               0.5 * (pL - pW) / denom_WO^2)
-  grad_DOOR <- c(1, 0, 0.5)
-  G <- rbind(grad_WR, grad_NB, grad_WO, grad_DOOR)
-  SE <- sqrt(diag(G %*% V %*% t(G)))
-  names(SE) <- c("WR","NB","WO","DOOR")
+  SE_out <- WinMO_logratio_SE(pW, pL, pT, Psi, eps)
+  SE <- SE_out$SE
+  SE_log <- SE_out$SE_log
 
   list(pW = pW, pL = pL, pT = pT,
        WR = if (pL > 0) pW / pL else NA_real_,
        NB = pW - pL,
        WO = (pW + 0.5*pT) / (pL + 0.5*pT),
        DOOR = pW + 0.5*pT,
-       SE_IF = SE)
+       SE_IF = SE,
+       SE_log_IF = SE_log)
 }
 
 IPW_WinStat_3end_IF <- function(data, A, X, Y1, Y2, Y3, eps = 1e-6) {
@@ -841,26 +833,17 @@ IPW_WinStat_3end_IF <- function(data, A, X, Y1, Y2, Y3, eps = 1e-6) {
 
   psi_pT <- -psi_pW - psi_pL
   Psi <- cbind(psi_pW, psi_pL, psi_pT)
-  V <- crossprod(Psi / n)
-
-  denom_L <- max(pL, eps)
-  denom_WO <- max(pL + 0.5 * pT, eps)
-  grad_WR <- c(1 / denom_L, -pW / denom_L^2, 0)
-  grad_NB <- c(1, -1, 0)
-  grad_WO <- c(1 / denom_WO,
-               -(pW + 0.5 * pT) / denom_WO^2,
-               0.5 * (pL - pW) / denom_WO^2)
-  grad_DOOR <- c(1, 0, 0.5)
-  G <- rbind(grad_WR, grad_NB, grad_WO, grad_DOOR)
-  SE <- sqrt(diag(G %*% V %*% t(G)))
-  names(SE) <- c("WR", "NB", "WO", "DOOR")
+  SE_out <- WinMO_logratio_SE(pW, pL, pT, Psi, eps)
+  SE <- SE_out$SE
+  SE_log <- SE_out$SE_log
 
   list(pW = pW, pL = pL, pT = pT,
        WR = if (pL > 0) pW / pL else NA_real_,
        NB = pW - pL,
        WO = (pW + 0.5 * pT) / (pL + 0.5 * pT),
        DOOR = pW + 0.5 * pT,
-       SE_IF = SE)
+       SE_IF = SE,
+       SE_log_IF = SE_log)
 }
 
 AIPW_WinStat_3end_IF <- function(data, A, X, Y1, Y2, Y3, eps = 1e-6) {
@@ -1046,25 +1029,16 @@ AIPW_WinStat_3end_IF <- function(data, A, X, Y1, Y2, Y3, eps = 1e-6) {
   psi_pT <- -psi_pW - psi_pL
 
   Psi <- cbind(psi_pW, psi_pL, psi_pT)
-  V <- crossprod(Psi / n)
-
-  denom_L <- max(pL, eps)
-  denom_WO <- max(pL + 0.5 * pT, eps)
-  grad_WR <- c(1 / denom_L, -pW / denom_L^2, 0)
-  grad_NB <- c(1, -1, 0)
-  grad_WO <- c(1 / denom_WO,
-               -(pW + 0.5 * pT) / denom_WO^2,
-               0.5 * (pL - pW) / denom_WO^2)
-  grad_DOOR <- c(1, 0, 0.5)
-  G <- rbind(grad_WR, grad_NB, grad_WO, grad_DOOR)
-  SE <- sqrt(diag(G %*% V %*% t(G)))
-  names(SE) <- c("WR", "NB", "WO", "DOOR")
+  SE_out <- WinMO_logratio_SE(pW, pL, pT, Psi, eps)
+  SE <- SE_out$SE
+  SE_log <- SE_out$SE_log
 
   list(pW = pW, pL = pL, pT = pT,
        WR = if (pL > 0) pW / pL else NA_real_,
        NB = pW - pL,
        WO = (pW + 0.5 * pT) / (pL + 0.5 * pT),
        DOOR = pW + 0.5 * pT,
-       SE_IF = SE)
+       SE_IF = SE,
+       SE_log_IF = SE_log)
 }
 
