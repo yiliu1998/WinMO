@@ -101,7 +101,7 @@ This gives
 
 ## Reference
 
-Yi Liu, Huiman Barnhart, Sean O'Brien, Yuliya Lokhnygina, and Roland A. Matsouaka (2026+). Estimation and Inference for Win Estimands with Multiple Ordinal Endpoints Subject to Missing Data. Unpublished pre-print. 
+Liu, Y., Barnhart, H., O'Brien, S., Lokhnygina, Y., & Matsouaka, R. A. (2026). Estimation and Inference for Win Measures with Multiple Ordinal Endpoints Subject to Missingness. arXiv preprint arXiv:2605.27085.
 
 ## Contact
 
