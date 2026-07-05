@@ -17,14 +17,12 @@ Below is a minimal reproducible example that simulates a randomized clinical tri
 
 ```r
 library(WinMO)
-
 set.seed(20260224)
 
 ## 1) Generate toy RCT data
 n <- 10000
-X <- matrix(rnorm(n * 3), n, 3)
+X <- matrix(rnorm(n * 3), n, 3) # baseline covariates
 colnames(X) <- paste0("X", 1:3)
-
 A <- rbinom(n, 1, 0.5)  # randomized treatment
 
 # latent utilities for two ordinal endpoints
@@ -32,45 +30,34 @@ U1 <- 0.6*A + X[,1] + 4*X[,2] + rnorm(n)
 U2 <- 0.8*A + 1.6*X[,1] + 5.2*X[,3] + rnorm(n)
 
 # map to ordinal categories (3-level Y1, 4-level Y2)
-Y1 <- cut(U1, breaks = c(-Inf, -0.3, 0.8, Inf),
-          labels = c("Poor","OK","Good"), right = TRUE)
-Y2 <- cut(U2, breaks = c(-Inf, -0.7, 0.2, 1.1, Inf),
-          labels = c("A","B","C","D"), right = TRUE)
-
+Y1 <- cut(U1, breaks = c(-Inf, -0.3, 0.8, Inf), labels = c("Poor","OK","Good"), right = TRUE)
+Y2 <- cut(U2, breaks = c(-Inf, -0.7, 0.2, 1.1, Inf), labels = c("A","B","C","D"), right = TRUE)
 Y1 <- as.character(Y1)
 Y2 <- as.character(Y2)
 
 ## 2) Induce missingness depending only on covariates (non-monotone)
 logit <- function(z) 1/(1+exp(-z))
-
 pR1 <- logit(0.3 - 0.5*X[,1] + 0.4*X[,2] - 0.2*X[,3])
 pR2 <- logit(0.2 + 0.3*X[,1] - 0.4*X[,2] + 0.5*X[,3])
-
 R1 <- rbinom(n, 1, pR1)
 R2 <- rbinom(n, 1, pR2)
-
 Y1[R1 == 0] <- NA
 Y2[R2 == 0] <- NA
 
-dat <- data.frame(
-  A  = A,
-  X1 = X[,1], X2 = X[,2], X3 = X[,3],
-  Y1 = Y1, Y2 = Y2
-)
+# observed data frame
+dat <- data.frame(A = A, X1 = X[,1], X2 = X[,2], X3 = X[,3], Y1 = Y1, Y2 = Y2)
 
-## 3) Run WinMO (two hierarchical endpoints: Y1 primary, Y2 secondary)
+## 3) Run WinMO function (two hierarchical endpoints: Y1 primary, Y2 secondary)
+
 Xnames <- c("X1","X2","X3")
-
 res_ipw  <- WinMO(dat, A = "A", X = Xnames, Y = c("Y1","Y2"), method = "IPW")
 res_aipw <- WinMO(dat, A = "A", X = Xnames, Y = c("Y1","Y2"), method = "AIPW")
 
 ## 4）Summarize results
-
 summarize_winmo <- function(res) {
   est <- c(WR = res$WR, WO = res$WO, NB = res$NB, DOOR = res$DOOR)
   se  <- as.numeric(res$SE_IF[c("WR","WO","NB","DOOR")])
   ci  <- t(mapply(wald_ci, est, se))
-
   out <- data.frame(
     estimand = names(est),
     estimate = as.numeric(est),
@@ -81,12 +68,10 @@ summarize_winmo <- function(res) {
   )
   out
 }
-
 tab_ipw  <- summarize_winmo(res_ipw)
 tab_aipw <- summarize_winmo(res_aipw)
 ```
-
-Finally, we can print and view the results of this toy example: 
+View the results: 
 
 ```r
 tab_ipw
